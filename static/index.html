@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Estudio de voz</title>
+<style>
+  :root {
+    --bg: #0d0f13;
+    --panel: #161a21;
+    --panel-2: #1d222b;
+    --line: #2a303b;
+    --text: #eef1f6;
+    --muted: #8d97a8;
+    --accent: #ffc531;
+    --accent-ink: #1a1400;
+    --blue: #5bc8ff;
+    --ok: #47d18c;
+    --bad: #ff5d6c;
+    --radius: 14px;
+    --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 20px 60px; }
+
+  header { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; flex-shrink: 0; }
+  .logo svg { width: 22px; height: 22px; }
+  h1 { font-size: 19px; margin: 0; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  .tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); padding: 4px; border-radius: 12px; }
+  .tab { border: 0; background: transparent; padding: 8px 16px; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .tab.on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .tab.on svg { color: var(--accent); }
+  .status { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 4px rgba(71,209,140,.15); }
+  .dot.load { background: var(--accent); animation: pulse 1s infinite alternate; }
+  .dot.bad { background: var(--bad); }
+  @keyframes pulse { to { opacity: .35; } }
+  @media (max-width: 700px) { .status { margin-left: 0; } }
+
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+  .step { width: 22px; height: 22px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); display: grid; place-items: center; font-size: 12px; letter-spacing: 0; }
+
+  .btn { border: 1px solid var(--line); background: var(--panel-2); padding: 9px 14px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  a.btn { color: inherit; text-decoration: none; }
+  .btn:hover:not(:disabled) { border-color: #3a4250; background: #232934; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover:not(:disabled) { background: #ffd35e; }
+  .btn.rec { color: var(--bad); }
+  .btn.rec.on { background: var(--bad); color: #fff; border-color: var(--bad); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+  .btn.ghost:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+  .btn.sm { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
+  .btn.big { width: 100%; justify-content: center; padding: 14px; font-size: 16px; }
+
+  input[type=text], input[type=number], select, textarea {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { min-height: 200px; resize: vertical; line-height: 1.5; }
+  label.lbl, .lbl { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+
+  /* Selector segmentado de idioma */
+  .seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .langs { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+  .langs .arrow { color: var(--muted); padding-bottom: 9px; font-size: 18px; }
+  .langnote { margin-top: 8px; font-size: 13px; color: var(--blue); min-height: 18px; }
+
+  /* Voces */
+  .voices { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 330px; overflow: auto; }
+  .voice { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; }
+  .voice.sel { border-color: var(--accent); background: rgba(255,197,49,.07); }
+  .voice .radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); flex-shrink: 0; }
+  .voice.sel .radio { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+  .voice .info { flex: 1; min-width: 0; }
+  .voice .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .voice .meta { font-size: 12px; color: var(--muted); }
+  .empty { color: var(--muted); font-size: 14px; padding: 14px; text-align: center; border: 1px dashed var(--line); border-radius: 11px; }
+
+  .add { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row > .grow { flex: 1; min-width: 120px; }
+  .preview { display: none; flex-direction: column; gap: 8px; padding: 12px; border-radius: 11px; background: var(--bg); border: 1px solid var(--line); }
+  .preview.show { display: flex; }
+  .hint { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .hint b { color: var(--text); font-weight: 600; }
+  .warn { color: var(--accent); }
+  audio { width: 100%; height: 36px; }
+
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  @media (max-width: 560px) { .opts { grid-template-columns: 1fr; } }
+  .toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  .toggle input { margin-top: 3px; accent-color: var(--accent); }
+  .counter { font-size: 12px; color: var(--muted); text-align: right; margin-top: 4px; }
+  details { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  summary { cursor: pointer; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+  .sliders { padding: 4px 12px 14px; display: grid; gap: 14px; }
+  .slider label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .slider label span:last-child { color: var(--text); font-family: var(--mono); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .gen { margin-top: 14px; }
+  .progress { display: none; margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; }
+  .progress.show { display: block; }
+  .progress .aviso { color: var(--accent); font-size: 13px; margin-top: 6px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--panel-2); margin-top: 8px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .bar.indet > div { width: 30%; animation: slide 1.2s infinite ease-in-out; }
+  @keyframes slide { from { margin-left: -30%; } to { margin-left: 100%; } }
+
+  .history { margin-top: 18px; }
+  .jobs { display: flex; flex-direction: column; gap: 12px; }
+  .job { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); overflow: hidden; }
+  .job.new { border-color: var(--accent); }
+  .job-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--panel-2); flex-wrap: wrap; }
+  .job-title { font-size: 13.5px; }
+  .job-title b { font-weight: 600; }
+  .job-title span { color: var(--muted); }
+  .job-actions { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .clip { display: grid; grid-template-columns: minmax(0, 1fr) 300px auto; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); }
+  @media (max-width: 760px) { .clip { grid-template-columns: 1fr; } }
+  .clip .t { font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  .clip .t.open { -webkit-line-clamp: unset; }
+  .clip .o { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .clip .n { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-bottom: 2px; }
+  .clip .d { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .pill { font-family: var(--mono); font-size: 11.5px; padding: 2px 7px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); color: var(--text); }
+
+  /* Transcribir */
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 26px 16px; text-align: center; cursor: pointer; background: var(--bg); transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: rgba(255,197,49,.05); }
+  .drop b { display: block; font-size: 15px; margin: 8px 0 4px; }
+  .drop svg { color: var(--accent); }
+  .banner { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--accent); background: rgba(255,197,49,.07); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
+  .banner code { font-family: var(--mono); background: var(--bg); padding: 1px 6px; border-radius: 5px; }
+  .tr-body { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+  .subtabs { display: flex; gap: 4px; }
+  .subtabs button { border: 1px solid var(--line); background: transparent; color: var(--muted); padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .subtabs button.on { color: var(--text); border-color: var(--accent); }
+  .transcript { white-space: pre-wrap; line-height: 1.55; font-size: 14.5px; max-height: 260px; overflow: auto; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .dl { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .dl .lbl { margin: 0 4px 0 0; }
+
+  /* Voces */
+  .vlist { display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 360px; overflow: auto; margin-top: 12px; }
+  .vlist .voice .meta b { color: var(--text); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+  .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); padding: 6px 11px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { border-color: var(--accent); background: rgba(255,197,49,.1); }
+  textarea.short { min-height: 96px; }
+  .engine { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .engine b { color: var(--text); }
+  .save { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .save input { flex: 1; min-width: 160px; padding: 7px 10px; }
+  .saved { color: var(--ok); font-size: 13.5px; }
+  .pill.es, .pill.en { color: var(--blue); }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; translate: -50% 20px; opacity: 0; background: var(--panel-2); border: 1px solid var(--line); padding: 12px 16px; border-radius: 12px; max-width: min(640px, calc(100% - 32px)); transition: .25s; z-index: 10; font-size: 14px; pointer-events: none; }
+  .toast.show { opacity: 1; translate: -50% 0; }
+  .toast.bad { border-color: var(--bad); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a1400" stroke-width="2.4" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg>
+      </div>
+      <div>
+        <h1>Estudio de voz</h1>
+        <div class="sub">Chatterbox · Kokoro · Qwen3-TTS · WhisperX — todo en tu equipo</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="clonar" role="tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        Clonar voz
+      </button>
+      <button class="tab" data-tab="voces" role="tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4zM18 15l.9 2.1 2.1.9-2.1.9L18 21l-.9-2.1-2.1-.9 2.1-.9zM5 15l.6 1.4 1.4.6-1.4.6L5 19l-.6-1.4L3 17l1.4-.6z"/></svg>
+        Voces
+      </button>
+      <button class="tab" data-tab="transcribir" role="tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+        Transcribir
+      </button>
+    </nav>
+    <div class="status"><span class="dot load" id="dot"></span><span id="statusText">Conectando…</span></div>
+  </header>
+
+  <!-- ═════════════ CLONAR ═════════════ -->
+  <div id="view-clonar">
+    <div class="grid">
+      <section class="panel">
+        <h2><span class="step">1</span> Elige tu voz</h2>
+        <div class="voices" id="voices"></div>
+        <div class="add">
+          <input type="text" id="voiceName" placeholder="Nombre de la voz (ej. Mi voz anuncio)" maxlength="60" />
+          <div class="row">
+            <button class="btn" id="btnUpload" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+              Subir audio
+            </button>
+            <button class="btn rec" id="btnRec" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg>
+              <span id="recLabel">Grabar</span>
+            </button>
+            <input type="file" id="file" accept="audio/*,video/*" class="hidden" />
+          </div>
+          <div class="preview" id="preview">
+            <audio id="previewAudio" controls></audio>
+            <div class="hint" id="previewInfo"></div>
+            <div class="row">
+              <button class="btn primary" id="btnSaveVoice" type="button">Guardar voz</button>
+              <button class="btn ghost" id="btnDiscard" type="button">Descartar</button>
+            </div>
+          </div>
+          <div class="hint">Para un buen clon: <b>10–20 s</b> hablando con naturalidad, sin música ni eco, con el tono que quieras conseguir.
+            ¿Sin voz propia? Crea una en la pestaña <a href="#voces" data-goto="voces" style="color:var(--accent)">Voces</a>.</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2><span class="step">2</span> Escribe lo que dirá</h2>
+        <textarea id="text" placeholder="Escribe aquí el texto…&#10;&#10;Con «Un audio por línea» puedes poner un nombre delante de cada línea:&#10;gancho | Diecinueve toneladas y media… y aun así gira en una rotonda.&#10;tamano | Un autobús normal mide doce metros."></textarea>
+        <div class="counter" id="counter">0 caracteres</div>
+
+        <div class="langs">
+          <div>
+            <span class="lbl">Escribo en</span>
+            <div class="seg" id="segTexto"><button data-v="es" class="on">Español</button><button data-v="en">Inglés</button></div>
+          </div>
+          <div class="arrow">→</div>
+          <div>
+            <span class="lbl">Audio en</span>
+            <div class="seg" id="segAudio"><button data-v="es" class="on">Español</button><button data-v="en">Inglés</button></div>
+          </div>
+        </div>
+        <div class="langnote" id="langNote"></div>
+
+        <label class="toggle" style="margin-top:12px">
+          <input type="checkbox" id="perLine" />
+          <span><b>Un audio por línea</b><br /><span class="hint">Ideal para guiones de vídeo: un archivo por escena y un ZIP con todo.</span></span>
+        </label>
+
+        <details>
+          <summary>Ajustes de la voz</summary>
+          <div class="sliders">
+            <div class="slider">
+              <label for="exag"><span>Expresividad</span><span id="exagV">0.50</span></label>
+              <input type="range" id="exag" min="0.25" max="1.5" step="0.05" value="0.5" />
+              <div class="hint">Más alta = más emoción y energía (y algo más rápida).</div>
+            </div>
+            <div class="slider">
+              <label for="cfg"><span>Ritmo / fidelidad (CFG)</span><span id="cfgV">0.50</span></label>
+              <input type="range" id="cfg" min="0" max="1" step="0.05" value="0.5" />
+              <div class="hint">Bájalo (≈0.3) para hablar más pausado. Si el audio sale en otro idioma que tu muestra y se nota acento, prueba 0.</div>
+            </div>
+            <div class="slider">
+              <label for="temp"><span>Variación</span><span id="tempV">0.80</span></label>
+              <input type="range" id="temp" min="0.3" max="1.4" step="0.05" value="0.8" />
+            </div>
+            <div class="row">
+              <div class="grow">
+                <label class="lbl" for="seed">Semilla (misma semilla = misma toma)</label>
+                <input type="number" id="seed" value="42" min="0" />
+              </div>
+              <button class="btn" id="btnSeed" type="button" style="margin-top:22px">🎲 Otra toma</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="gen">
+          <button class="btn primary big" id="btnGen" type="button" disabled>Generar audio</button>
+          <div class="progress" id="progress">
+            <div id="progText">Generando…</div>
+            <div class="bar" id="bar"><div></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel history">
+      <h2><span class="step">3</span> Tus audios</h2>
+      <div class="jobs" id="jobs"></div>
+    </section>
+  </div>
+
+  <!-- ═════════════ VOCES ═════════════ -->
+  <div id="view-voces" class="hidden">
+    <div class="banner hidden" id="vocesMissing"></div>
+    <div class="grid">
+      <section class="panel">
+        <h2><span class="step">1</span> Cómo será la voz</h2>
+        <div class="langs" style="margin-top:0">
+          <div>
+            <span class="lbl">Idioma</span>
+            <div class="seg" id="segVIdioma"><button data-v="es" class="on">Español</button><button data-v="en">Inglés</button></div>
+          </div>
+          <div id="modoBox">
+            <span class="lbl">Cómo</span>
+            <div class="seg" id="segVModo"><button data-v="lista" class="on">Voces listas</button><button data-v="disenar">Diseñar</button></div>
+          </div>
+        </div>
+
+        <div id="vLista">
+          <div class="vlist" id="kokoroList"></div>
+        </div>
+
+        <div id="vDisenar" class="hidden">
+          <span class="lbl" style="margin-top:14px">Plantillas</span>
+          <div class="chips" id="plantillas"></div>
+          <label class="lbl" for="vDesc">Descríbela (edad, tono, ritmo, para qué es)</label>
+          <textarea id="vDesc" class="short" maxlength="600" placeholder="Ej.: Hombre de unos 35 años, voz grave y cálida, habla tranquilo y claro, como un narrador de documentales."></textarea>
+          <div class="langs">
+            <div>
+              <span class="lbl">Acento</span>
+              <div class="seg" id="segAcento"></div>
+            </div>
+            <div style="flex:1;min-width:150px">
+              <label class="lbl" for="vSeed">Semilla</label>
+              <div class="row" style="flex-wrap:nowrap"><input type="number" id="vSeed" value="7" min="0" /><button class="btn" id="vSeedBtn" type="button" title="Otra variante de la misma descripción">🎲</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="engine" id="engineInfo"></div>
+      </section>
+
+      <section class="panel">
+        <h2><span class="step">2</span> Pruébala</h2>
+        <label class="lbl" for="vTexto">Texto de prueba <span class="hint">(15–20 s es ideal si luego la vas a usar para clonar)</span></label>
+        <textarea id="vTexto" class="short" style="min-height:130px" maxlength="700"></textarea>
+        <div class="row" style="justify-content:space-between;margin-top:4px">
+          <button class="btn ghost sm" id="vTextoReset" type="button">↺ Texto de ejemplo</button>
+          <span class="counter" id="vCounter"></span>
+        </div>
+        <div class="gen">
+          <button class="btn primary big" id="btnDisenar" type="button" disabled>Generar prueba</button>
+          <div class="progress" id="vProgress">
+            <div id="vProgText">Empezando…</div>
+            <div class="aviso hidden" id="vAviso"></div>
+            <div class="bar indet"><div></div></div>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:12px">Cuando una te guste, <b>guárdala como voz</b>: aparecerá en «Clonar voz» y Chatterbox la usará para todos tus guiones, siempre igual.</div>
+      </section>
+    </div>
+
+    <section class="panel history">
+      <h2><span class="step">3</span> Pruebas</h2>
+      <div class="jobs" id="pruebas"></div>
+    </section>
+  </div>
+
+  <!-- ═════════════ TRANSCRIBIR ═════════════ -->
+  <div id="view-transcribir" class="hidden">
+    <div class="banner hidden" id="whisperMissing">
+      La transcripción aún no está instalada. Cierra el servidor y haz doble clic en <code>instalar-whisper.bat</code>
+      (descarga unos GB la primera vez). Después vuelve a abrir <code>iniciar.bat</code>.
+    </div>
+    <div class="grid">
+      <section class="panel">
+        <h2><span class="step">1</span> Sube el audio</h2>
+        <div class="drop" id="drop">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+          <b>Arrastra aquí un audio o vídeo</b>
+          <span class="hint">o haz clic para elegirlo · MP3, WAV, M4A, MP4…</span>
+        </div>
+        <input type="file" id="trFile" accept="audio/*,video/*" class="hidden" />
+        <div class="row" style="margin-top:10px">
+          <button class="btn rec" id="trRec" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg>
+            <span id="trRecLabel">Grabar</span>
+          </button>
+        </div>
+        <div class="preview" id="trPreview" style="margin-top:10px">
+          <audio id="trAudio" controls></audio>
+          <div class="hint" id="trInfo"></div>
+          <div class="row"><button class="btn ghost" id="trClear" type="button">Quitar</button></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2><span class="step">2</span> Idiomas</h2>
+        <div class="langs" style="margin-top:0">
+          <div>
+            <span class="lbl">El audio está en</span>
+            <div class="seg" id="segTrIn"><button data-v="auto" class="on">Detectar</button><button data-v="es">Español</button><button data-v="en">Inglés</button></div>
+          </div>
+          <div class="arrow">→</div>
+          <div>
+            <span class="lbl">Quiero el texto en</span>
+            <div class="seg" id="segTrOut"><button data-v="igual" class="on">El mismo</button><button data-v="es">Español</button><button data-v="en">Inglés</button></div>
+          </div>
+        </div>
+        <div class="langnote" id="trLangNote"></div>
+
+        <div class="opts">
+          <div>
+            <label class="lbl" for="trModel">Modelo</label>
+            <select id="trModel">
+              <option value="rapido">Rápido (small)</option>
+              <option value="equilibrado" selected>Equilibrado (turbo) · recomendado</option>
+              <option value="preciso">Máxima precisión (large-v3) · lento</option>
+            </select>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="trWords" checked />
+            <span><b>Tiempos por palabra</b><br /><span class="hint">Lo especial de WhisperX: subtítulos que encajan al milímetro.</span></span>
+          </label>
+        </div>
+
+        <div class="gen">
+          <button class="btn primary big" id="btnTr" type="button" disabled>Transcribir</button>
+          <div class="progress" id="trProgress">
+            <div id="trProgText">Empezando…</div>
+            <div class="aviso hidden" id="trAviso"></div>
+            <div class="bar indet"><div></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel history">
+      <h2><span class="step">3</span> Tus transcripciones</h2>
+      <div class="jobs" id="trJobs"></div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const LANG = { es: "español", en: "inglés", fr: "francés", de: "alemán", it: "italiano", pt: "portugués" };
+const store = {
+  get(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+const state = {
+  voices: [], selected: store.get("voz-seleccionada"), ready: false, generating: false, pending: null, newJob: null,
+  whisper: false, transcribing: false, trBlob: null, trName: "", newTr: null,
+  motores: {}, designing: false, kokoro: store.get("kokoro-voz", "af_heart"), newPrueba: null,
+};
+
+// ── utilidades ──
+function toast(msg, bad = false) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (bad ? " bad" : "");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => (t.className = "toast"), bad ? 8000 : 3000);
+}
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  const isJson = (r.headers.get("content-type") || "").includes("json");
+  const data = isJson ? await r.json() : null;
+  if (!r.ok) throw new Error((data && data.detail) || `Error ${r.status}`);
+  return data;
+}
+const fmtS = (s) => (s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")} min`);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fecha = (iso) => new Date(iso).toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+
+function seg(id, onChange) {
+  const el = $(id);
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    el.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    onChange && onChange(b.dataset.v);
+  });
+  return {
+    get: () => el.querySelector("button.on").dataset.v,
+    set: (v) => { const b = el.querySelector(`[data-v="${v}"]`); if (b) { el.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); onChange && onChange(v); } },
+  };
+}
+
+// Cualquier audio/vídeo → WAV mono (opcionalmente remuestreado) en el navegador
+async function toWav(blob, targetRate = null) {
+  const buf = await blob.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let audio;
+  try { audio = await ctx.decodeAudioData(buf); } finally { ctx.close(); }
+  let mono;
+  let sr = audio.sampleRate;
+  if (targetRate && targetRate !== sr) {
+    const off = new OfflineAudioContext(1, Math.ceil(audio.duration * targetRate), targetRate);
+    const src = off.createBufferSource();
+    src.buffer = audio; src.connect(off.destination); src.start();
+    mono = (await off.startRendering()).getChannelData(0);
+    sr = targetRate;
+  } else {
+    const n = audio.length, ch = audio.numberOfChannels;
+    mono = new Float32Array(n);
+    for (let c = 0; c < ch; c++) { const d = audio.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ch; }
+  }
+  const n = mono.length;
+  const out = new DataView(new ArrayBuffer(44 + n * 2));
+  const w = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); out.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+  out.setUint32(24, sr, true); out.setUint32(28, sr * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+  w(36, "data"); out.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono[i])) * 32767, true);
+  return { wav: new Blob([out], { type: "audio/wav" }), seconds: n / sr };
+}
+
+// Grabadora reutilizable
+function recorder(btnId, labelId, onDone) {
+  let rec = null, timer = null, t0 = 0;
+  $(btnId).onclick = async () => {
+    if (rec && rec.state === "recording") { rec.stop(); return; }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      const https = `https://${location.hostname}:${Number(location.port || 80) + 1}${location.pathname}${location.hash}`;
+      toast(`Por la IP de la red el navegador no deja usar el micrófono. Entra por ${https} (abre el servidor con iniciar-en-red.bat) o sube un archivo.`, true);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
+      const chunks = [];
+      rec = new MediaRecorder(stream);
+      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        clearInterval(timer);
+        $(btnId).classList.remove("on");
+        $(labelId).textContent = "Grabar";
+        onDone(new Blob(chunks, { type: rec.mimeType }));
+      };
+      rec.start(); t0 = Date.now();
+      $(btnId).classList.add("on");
+      const tick = () => { const s = (Date.now() - t0) / 1000; $(labelId).textContent = `Parar · ${s.toFixed(0)} s`; };
+      tick(); timer = setInterval(tick, 250);
+    } catch (e) { toast("No tengo permiso para usar el micrófono.", true); }
+  };
+}
+
+// ── pestañas ──
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === name));
+  for (const v of ["clonar", "voces", "transcribir"]) $("view-" + v).classList.toggle("hidden", name !== v);
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+}
+document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => showTab(t.dataset.tab)));
+showTab(["#transcribir", "#voces"].includes(location.hash) ? location.hash.slice(1) : "clonar");
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (g) { e.preventDefault(); showTab(g.dataset.goto); window.scrollTo({ top: 0 }); } });
+
+// ── estado del servidor ──
+async function pollStatus() {
+  try {
+    const s = await api("/api/estado");
+    const dot = $("dot"), txt = $("statusText");
+    if (s.estado === "listo") {
+      dot.className = "dot ok";
+      const dev = s.simulado ? "modo simulado" : s.gpu ? `GPU · ${s.gpu}` : s.dispositivo === "cpu" ? "CPU (lento)" : s.dispositivo.toUpperCase();
+      txt.textContent = `Listo · ${dev}`;
+    } else if (s.estado === "dormido") {
+      dot.className = "dot ok"; txt.textContent = "Chatterbox en pausa (se recarga al generar)";
+    } else if (s.estado === "cargando") {
+      dot.className = "dot load"; txt.textContent = "Cargando modelo de voz…";
+    } else {
+      dot.className = "dot bad"; txt.textContent = "Error en el modelo de voz";
+      if (!pollStatus._shown) { toast(s.error || "Error desconocido", true); pollStatus._shown = true; }
+    }
+    state.ready = s.estado === "listo" || s.estado === "dormido";
+    state.motores = s.motores_voces || {};
+    renderVocesBanner();
+    if (state.designing && s.progreso_voz) {
+      const p = s.progreso_voz, el = Date.now() / 1000 - p.inicio;
+      $("vProgText").textContent = `${p.etapa} · ${fmtS(el)}`;
+      $("vAviso").classList.toggle("hidden", !p.aviso);
+      $("vAviso").textContent = p.aviso || "";
+    }
+    state.whisper = !!s.whisper;
+    $("whisperMissing").classList.toggle("hidden", state.whisper);
+    if (state.generating && s.progreso) {
+      const p = s.progreso, el = Date.now() / 1000 - p.inicio;
+      $("progText").textContent = p.actual === 0 ? `${p.texto} · ${fmtS(el)}` : `Generando ${p.total > 1 ? `${p.actual} de ${p.total}` : ""}: «${p.texto}» · ${fmtS(el)}`;
+      $("bar").className = p.total > 1 && p.actual > 0 ? "bar" : "bar indet";
+      if (p.total > 1) $("bar").firstElementChild.style.width = `${((p.actual - 1) / p.total) * 100}%`;
+    }
+    if (state.transcribing && s.progreso_tr) {
+      const p = s.progreso_tr, el = Date.now() / 1000 - p.inicio;
+      $("trProgText").textContent = `${p.etapa} · ${fmtS(el)}`;
+      $("trAviso").classList.toggle("hidden", !p.aviso);
+      $("trAviso").textContent = p.aviso || "";
+    }
+  } catch (e) {
+    $("dot").className = "dot bad"; $("statusText").textContent = "Servidor desconectado";
+    state.ready = false;
+  }
+  updateGenButton(); updateTrButton(); updateVButton();
+  setTimeout(pollStatus, state.generating || state.transcribing || state.designing ? 700 : 2500);
+}
+
+// ═════════════ CLONAR ═════════════
+async function loadVoices() {
+  state.voices = await api("/api/voces");
+  if (!state.voices.some((v) => v.id === state.selected)) state.selected = state.voices[0]?.id || null;
+  renderVoices();
+}
+function renderVoices() {
+  const box = $("voices");
+  box.innerHTML = !state.voices.length
+    ? `<div class="empty">Aún no tienes voces. Sube un audio o graba tu voz abajo.</div>`
+    : state.voices.map((v) => `
+      <div class="voice ${v.id === state.selected ? "sel" : ""}" data-id="${esc(v.id)}">
+        <span class="radio"></span>
+        <div class="info">
+          <div class="name">${esc(v.nombre)}</div>
+          <div class="meta">${v.idioma ? `<span class="pill ${esc(v.idioma)}">${esc(v.idioma.toUpperCase())}</span> ` : ""}${fmtS(v.duracion)}${v.duracion < 6 ? ' · <span class="warn">corta</span>' : ""}${v.origen ? ` · ${esc(v.origen)}` : ""}</div>
+        </div>
+        <button class="btn ghost" data-play="${esc(v.id)}" title="Escuchar">▶</button>
+        <button class="btn ghost" data-del="${esc(v.id)}" title="Borrar">✕</button>
+      </div>`).join("");
+  store.set("voz-seleccionada", state.selected);
+  updateGenButton();
+}
+let player = null;
+$("voices").addEventListener("click", async (e) => {
+  const play = e.target.closest("[data-play]"), del = e.target.closest("[data-del]"), card = e.target.closest(".voice");
+  if (play) {
+    e.stopPropagation();
+    if (player && !player.paused && player.dataset.id === play.dataset.play) { player.pause(); return; }
+    player?.pause();
+    player = new Audio(`/api/voces/${encodeURIComponent(play.dataset.play)}/audio`);
+    player.dataset.id = play.dataset.play;
+    player.play();
+    return;
+  }
+  if (del) {
+    e.stopPropagation();
+    const v = state.voices.find((x) => x.id === del.dataset.del);
+    if (!confirm(`¿Borrar la voz «${v?.nombre}»?`)) return;
+    try { await api(`/api/voces/${encodeURIComponent(del.dataset.del)}`, { method: "DELETE" }); await loadVoices(); }
+    catch (err) { toast(err.message, true); }
+    return;
+  }
+  if (card) { state.selected = card.dataset.id; renderVoices(); }
+});
+
+async function setPending(blob, origen) {
+  try {
+    const { wav, seconds } = await toWav(blob);
+    state.pending = wav;
+    $("previewAudio").src = URL.createObjectURL(wav);
+    let info = `${origen} · ${fmtS(seconds)}`;
+    if (seconds < 6) info += ' · <span class="warn">algo corta: con 10–20 s el clon sale mejor</span>';
+    if (seconds > 40) info += ' · <span class="warn">larga: basta con 10–20 s</span>';
+    $("previewInfo").innerHTML = info;
+    $("preview").classList.add("show");
+  } catch (e) { toast("No he podido leer ese audio. Prueba con WAV o MP3.", true); }
+}
+$("btnUpload").onclick = () => $("file").click();
+$("file").onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (!$("voiceName").value.trim()) $("voiceName").value = f.name.replace(/\.[^.]+$/, "");
+  setPending(f, `Archivo «${f.name}»`);
+  e.target.value = "";
+};
+recorder("btnRec", "recLabel", (blob) => setPending(blob, "Grabación"));
+$("btnDiscard").onclick = () => { state.pending = null; $("preview").classList.remove("show"); };
+$("btnSaveVoice").onclick = async () => {
+  if (!state.pending) return;
+  const nombre = $("voiceName").value.trim() || "Mi voz";
+  $("btnSaveVoice").disabled = true;
+  try {
+    const v = await api(`/api/voces?nombre=${encodeURIComponent(nombre)}`, { method: "POST", headers: { "Content-Type": "audio/wav" }, body: state.pending });
+    state.selected = v.id; state.pending = null;
+    $("preview").classList.remove("show"); $("voiceName").value = "";
+    await loadVoices();
+    toast(`Voz «${v.nombre}» guardada`);
+  } catch (e) { toast(e.message, true); }
+  $("btnSaveVoice").disabled = false;
+};
+
+// idiomas de clonar
+function updateLangNote() {
+  const a = langTexto.get(), b = langAudio.get();
+  $("langNote").textContent = a === b ? "" : `Se traducirá del ${LANG[a]} al ${LANG[b]} antes de generar la voz.`;
+  store.set("idiomas-clonar", [a, b]);
+}
+const langTexto = seg("segTexto", updateLangNote);
+const langAudio = seg("segAudio", updateLangNote);
+{ const [a, b] = store.get("idiomas-clonar", ["es", "es"]); langTexto.set(a); langAudio.set(b); }
+
+for (const [id, out] of [["exag", "exagV"], ["cfg", "cfgV"], ["temp", "tempV"]]) {
+  const f = () => ($(out).textContent = Number($(id).value).toFixed(2));
+  $(id).addEventListener("input", f); f();
+}
+$("btnSeed").onclick = () => { $("seed").value = Math.floor(Math.random() * 100000); toast("Nueva semilla: genera otra vez para una toma distinta"); };
+$("text").addEventListener("input", () => {
+  const t = $("text").value, lines = t.split("\n").filter((l) => l.trim()).length;
+  $("counter").textContent = `${t.length} caracteres` + ($("perLine").checked ? ` · ${lines} audio${lines === 1 ? "" : "s"}` : "");
+  updateGenButton();
+});
+$("perLine").addEventListener("change", () => $("text").dispatchEvent(new Event("input")));
+{ const saved = store.get("clonador-form"); if (saved) { $("text").value = saved.text || ""; $("perLine").checked = !!saved.perLine; } }
+$("text").dispatchEvent(new Event("input"));
+
+function updateGenButton() {
+  const b = $("btnGen");
+  b.disabled = !(state.ready && state.selected && $("text").value.trim() && !state.generating && !state.transcribing && !state.designing);
+  b.textContent = state.generating ? "Generando…" : state.transcribing ? "Esperando a la transcripción…" : state.designing ? "Esperando al diseño de voz…" : !state.selected ? "Primero elige o añade una voz" : !state.ready ? "Esperando al modelo…" : "Generar audio";
+}
+$("btnGen").onclick = async () => {
+  const body = {
+    voz_id: state.selected, texto: $("text").value, idioma: langAudio.get(), idioma_texto: langTexto.get(),
+    por_lineas: $("perLine").checked, expresividad: Number($("exag").value), cfg: Number($("cfg").value),
+    temperatura: Number($("temp").value), semilla: Number($("seed").value) || 0,
+  };
+  store.set("clonador-form", { text: body.texto, perLine: body.por_lineas });
+  state.generating = true; updateGenButton();
+  $("progress").classList.add("show"); $("progText").textContent = "Empezando…"; $("bar").className = "bar indet";
+  try {
+    const job = await api("/api/generar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    state.newJob = job.id;
+    await loadJobs();
+    const n = job.archivos.length;
+    toast(`${n === 1 ? "Audio listo" : `${n} audios listos`} en ${fmtS(job.segundos_generando)}`);
+    document.querySelector("#view-clonar .history").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { toast(e.message, true); }
+  state.generating = false;
+  $("progress").classList.remove("show");
+  updateGenButton();
+};
+
+async function loadJobs() {
+  const jobs = await api("/api/trabajos");
+  loadJobs.cache = jobs;
+  const box = $("jobs");
+  if (!jobs.length) { box.innerHTML = `<div class="empty">Aquí aparecerán los audios que generes.</div>`; return; }
+  box.innerHTML = jobs.map((j) => {
+    const total = j.archivos.reduce((s, a) => s + a.duracion, 0);
+    const trad = j.idioma_texto && j.idioma_texto !== j.idioma;
+    const clips = j.archivos.map((a) => {
+      const src = `/api/trabajos/${encodeURIComponent(j.id)}/${encodeURIComponent(a.archivo)}`;
+      return `<div class="clip">
+        <div>${j.archivos.length > 1 ? `<div class="n">${esc(a.nombre)}</div>` : ""}
+          <div class="t" title="Clic para ver todo">${esc(a.texto)}</div>
+          ${a.texto_original ? `<div class="o">Original: ${esc(a.texto_original)}</div>` : ""}</div>
+        <audio controls preload="none" src="${src}"></audio>
+        <div class="row"><span class="d">${fmtS(a.duracion)}</span><a class="btn sm" href="${src}?descargar=1">⬇ WAV</a></div>
+      </div>`;
+    }).join("");
+    return `<div class="job ${j.id === state.newJob ? "new" : ""}">
+      <div class="job-head">
+        <div class="job-title"><b>${esc(j.voz.nombre)}</b> <span class="pill">${trad ? `${j.idioma_texto.toUpperCase()} → ${j.idioma.toUpperCase()}` : j.idioma.toUpperCase()}</span>
+          <span>· ${fecha(j.creado)} · ${j.archivos.length} audio${j.archivos.length > 1 ? "s" : ""} · ${fmtS(total)} · semilla ${j.ajustes.semilla}</span></div>
+        <div class="job-actions">
+          ${j.archivos.length > 1 ? `<a class="btn sm" href="/api/trabajos/${encodeURIComponent(j.id)}/zip">⬇ ZIP</a>` : ""}
+          <button class="btn ghost" data-reuse="${esc(j.id)}" title="Volver a cargar este texto y ajustes">↺ Reutilizar</button>
+          <button class="btn ghost" data-deljob="${esc(j.id)}" title="Borrar">✕</button>
+        </div>
+      </div>${clips}</div>`;
+  }).join("");
+}
+$("jobs").addEventListener("click", async (e) => {
+  const tx = e.target.closest(".clip .t");
+  if (tx) { tx.classList.toggle("open"); return; }
+  const del = e.target.closest("[data-deljob]"), reuse = e.target.closest("[data-reuse]");
+  if (del) {
+    if (!confirm("¿Borrar estos audios?")) return;
+    try { await api(`/api/trabajos/${encodeURIComponent(del.dataset.deljob)}`, { method: "DELETE" }); await loadJobs(); }
+    catch (err) { toast(err.message, true); }
+  }
+  if (reuse) {
+    const j = (loadJobs.cache || []).find((x) => x.id === reuse.dataset.reuse);
+    if (!j) return;
+    const multi = j.archivos.length > 1;
+    const txt = (a) => a.texto_original || a.texto;
+    $("text").value = multi ? j.archivos.map((a) => `${a.nombre} | ${txt(a)}`).join("\n") : txt(j.archivos[0]);
+    $("perLine").checked = multi;
+    $("exag").value = j.ajustes.expresividad; $("cfg").value = j.ajustes.cfg; $("temp").value = j.ajustes.temperatura; $("seed").value = j.ajustes.semilla;
+    ["exag", "cfg", "temp"].forEach((id) => $(id).dispatchEvent(new Event("input")));
+    if (state.voices.some((v) => v.id === j.voz.id)) { state.selected = j.voz.id; renderVoices(); }
+    langTexto.set(j.idioma_texto || j.idioma); langAudio.set(j.idioma);
+    $("text").dispatchEvent(new Event("input"));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+});
+
+// ═════════════ TRANSCRIBIR ═════════════
+function updateTrLangNote() {
+  const a = trIn.get(), b = trOut.get();
+  let note = "";
+  if (b !== "igual") note = a === "auto" ? `Si el audio no está en ${LANG[b]}, se traducirá al ${LANG[b]}.` : a !== b ? `Se transcribirá en ${LANG[a]} y se traducirá al ${LANG[b]}. Tendrás los dos textos.` : "";
+  $("trLangNote").textContent = note;
+  store.set("idiomas-transcribir", [a, b]);
+}
+const trIn = seg("segTrIn", updateTrLangNote);
+const trOut = seg("segTrOut", updateTrLangNote);
+{ const [a, b] = store.get("idiomas-transcribir", ["auto", "igual"]); trIn.set(a); trOut.set(b); }
+$("trModel").value = store.get("modelo-whisper", "equilibrado");
+$("trModel").onchange = () => store.set("modelo-whisper", $("trModel").value);
+
+async function setTrAudio(blob, nombre) {
+  try {
+    $("trInfo").textContent = "Preparando el audio…";
+    $("trPreview").classList.add("show");
+    const { wav, seconds } = await toWav(blob, 16000);
+    state.trBlob = wav; state.trName = nombre;
+    $("trAudio").src = URL.createObjectURL(wav);
+    $("trInfo").textContent = `${nombre} · ${fmtS(seconds)}`;
+  } catch (e) {
+    $("trPreview").classList.remove("show");
+    toast("No he podido leer ese archivo. Prueba con MP3, WAV, M4A o MP4.", true);
+  }
+  updateTrButton();
+}
+$("drop").onclick = () => $("trFile").click();
+$("trFile").onchange = (e) => { const f = e.target.files[0]; if (f) setTrAudio(f, f.name); e.target.value = ""; };
+["dragenter", "dragover"].forEach((ev) => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) setTrAudio(f, f.name); });
+recorder("trRec", "trRecLabel", (blob) => setTrAudio(blob, "Grabación"));
+$("trClear").onclick = () => { state.trBlob = null; $("trPreview").classList.remove("show"); updateTrButton(); };
+
+function updateTrButton() {
+  const b = $("btnTr");
+  b.disabled = !(state.whisper && state.trBlob && !state.transcribing && !state.generating && !state.designing);
+  b.textContent = state.transcribing ? "Transcribiendo…" : state.generating ? "Esperando a la generación de voz…" : !state.whisper ? "Transcripción no instalada" : !state.trBlob ? "Primero sube un audio" : "Transcribir";
+}
+$("btnTr").onclick = async () => {
+  const q = new URLSearchParams({ entrada: trIn.get(), salida: trOut.get(), modelo: $("trModel").value, palabras: $("trWords").checked ? "1" : "0", nombre: state.trName });
+  state.transcribing = true; updateTrButton(); updateGenButton();
+  $("trProgress").classList.add("show"); $("trProgText").textContent = "Subiendo el audio…"; $("trAviso").classList.add("hidden");
+  try {
+    const t = await api(`/api/transcribir?${q}`, { method: "POST", headers: { "Content-Type": "audio/wav" }, body: state.trBlob });
+    state.newTr = t.id;
+    await loadTr();
+    toast(`Transcripción lista en ${fmtS(t.segundos || 0)}`);
+    document.querySelector("#view-transcribir .history").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { toast(e.message, true); }
+  state.transcribing = false;
+  $("trProgress").classList.remove("show");
+  updateTrButton(); updateGenButton();
+};
+
+async function loadTr() {
+  const list = await api("/api/transcripciones");
+  loadTr.cache = list;
+  const box = $("trJobs");
+  if (!list.length) { box.innerHTML = `<div class="empty">Aquí aparecerán tus transcripciones.</div>`; return; }
+  box.innerHTML = list.map((t) => {
+    const base = `/api/transcripciones/${encodeURIComponent(t.id)}`;
+    const hasTr = !!t.traduccion;
+    const dl = (pref) => ["txt", "srt", "vtt"].map((x) => `<a class="btn sm" href="${base}/${pref}.${x}?descargar=1">${x.toUpperCase()}</a>`).join("");
+    return `<div class="job ${t.id === state.newTr ? "new" : ""}" data-tr="${esc(t.id)}">
+      <div class="job-head">
+        <div class="job-title"><b>${esc(t.nombre)}</b> <span class="pill">${t.idioma.toUpperCase()}${hasTr ? ` → ${t.destino.toUpperCase()}` : ""}</span>
+          <span>· ${fecha(t.creado)} · ${fmtS(t.duracion)} de audio · ${esc(t.modelo)} · ${fmtS(t.segundos || 0)} en ${esc(t.dispositivo || "")}</span></div>
+        <div class="job-actions"><button class="btn ghost" data-deltr="${esc(t.id)}" title="Borrar">✕</button></div>
+      </div>
+      <div class="tr-body">
+        ${(t.avisos || []).map((a) => `<div class="hint warn">${esc(a)}</div>`).join("")}
+        <audio controls preload="none" src="${base}/entrada.wav"></audio>
+        ${hasTr ? `<div class="subtabs"><button class="on" data-view="trad">Traducción (${esc(LANG[t.destino] || t.destino)})</button><button data-view="orig">Original (${esc(LANG[t.idioma] || t.idioma)})</button></div>` : ""}
+        <div class="transcript" data-text="trad" ${hasTr ? "" : "hidden"}>${esc(t.traduccion || "")}</div>
+        <div class="transcript" data-text="orig" ${hasTr ? "hidden" : ""}>${esc(t.texto || "(sin texto)")}</div>
+        <div class="dl">
+          <button class="btn sm primary" data-use="${esc(t.id)}">Usar para clonar</button>
+          <button class="btn sm" data-copy="${esc(t.id)}">Copiar</button>
+          <span class="lbl" style="margin-left:8px">${hasTr ? "Original:" : "Descargar:"}</span>${dl("original")}
+          ${hasTr ? `<span class="lbl" style="margin-left:8px">Traducción:</span>${dl("traduccion")}` : ""}
+          <a class="btn sm" href="${base}/transcripcion.json?descargar=1" title="Con tiempos por palabra">JSON</a>
+        </div>
+      </div></div>`;
+  }).join("");
+}
+function visibleText(card) {
+  const el = [...card.querySelectorAll(".transcript")].find((x) => !x.hidden);
+  return { text: el.textContent, which: el.dataset.text };
+}
+$("trJobs").addEventListener("click", async (e) => {
+  const card = e.target.closest("[data-tr]");
+  const sub = e.target.closest(".subtabs button");
+  if (sub && card) {
+    card.querySelectorAll(".subtabs button").forEach((b) => b.classList.toggle("on", b === sub));
+    card.querySelectorAll(".transcript").forEach((t) => (t.hidden = t.dataset.text !== sub.dataset.view));
+    return;
+  }
+  const del = e.target.closest("[data-deltr]");
+  if (del) {
+    if (!confirm("¿Borrar esta transcripción?")) return;
+    try { await api(`/api/transcripciones/${encodeURIComponent(del.dataset.deltr)}`, { method: "DELETE" }); await loadTr(); }
+    catch (err) { toast(err.message, true); }
+    return;
+  }
+  const copy = e.target.closest("[data-copy]");
+  if (copy && card) {
+    try { await navigator.clipboard.writeText(visibleText(card).text); toast("Texto copiado"); }
+    catch (err) { toast("No se pudo copiar (el navegador lo bloquea fuera de localhost).", true); }
+    return;
+  }
+  const use = e.target.closest("[data-use]");
+  if (use && card) {
+    const t = (loadTr.cache || []).find((x) => x.id === use.dataset.use);
+    const { text, which } = visibleText(card);
+    const lang = which === "trad" ? t.destino : t.idioma;
+    $("text").value = text;
+    $("perLine").checked = false;
+    if (lang === "es" || lang === "en") { langTexto.set(lang); langAudio.set(lang); }
+    $("text").dispatchEvent(new Event("input"));
+    showTab("clonar");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast("Texto listo para clonar: elige la voz y pulsa Generar");
+  }
+});
+
+
+// ═════════════ VOCES ═════════════
+const KOKORO = [
+  ["af_heart", "Heart", "Mujer · EE. UU. · la más natural"],
+  ["af_bella", "Bella", "Mujer · EE. UU. · cálida y expresiva"],
+  ["af_nicole", "Nicole", "Mujer · EE. UU. · suave, casi susurrada"],
+  ["af_aoede", "Aoede", "Mujer · EE. UU. · tranquila"],
+  ["af_kore", "Kore", "Mujer · EE. UU. · firme"],
+  ["af_sarah", "Sarah", "Mujer · EE. UU. · cercana"],
+  ["am_michael", "Michael", "Hombre · EE. UU. · narrador"],
+  ["am_fenrir", "Fenrir", "Hombre · EE. UU. · grave"],
+  ["am_puck", "Puck", "Hombre · EE. UU. · animado"],
+  ["bf_emma", "Emma", "Mujer · Reino Unido · elegante"],
+  ["bf_isabella", "Isabella", "Mujer · Reino Unido · cálida"],
+  ["bm_george", "George", "Hombre · Reino Unido · maduro"],
+  ["bm_fable", "Fable", "Hombre · Reino Unido · cuentacuentos"],
+];
+const PLANTILLAS = [
+  ["Narrador documental", "Male narrator in his forties with a deep, warm and calm voice. Speaks slowly and clearly, like a documentary voice-over, with quiet authority and natural pauses."],
+  ["Locutora cálida", "Woman in her thirties with a warm, friendly and close voice. Smooth and confident delivery, like a radio host talking to a friend."],
+  ["Joven enérgico", "Young man in his twenties with a bright, energetic voice. Fast, enthusiastic and very expressive, like a popular social media creator explaining something amazing."],
+  ["Presentadora de noticias", "Female news anchor with a clear, neutral and professional voice. Steady pace, precise diction, serious but approachable."],
+  ["Voz de tráiler", "Man with a very deep, powerful and resonant voice. Dramatic and epic delivery, like a movie trailer announcer."],
+  ["Divulgadora curiosa", "Young woman in her twenties with a lively, curious and cheerful voice. Explains things with wonder and a smile, natural and expressive."],
+  ["Voz madura y serena", "Man in his sixties with a soft, slightly husky and serene voice. Calm storytelling tone, wise and kind."],
+];
+const ACENTOS = { es: [["espana", "España"], ["latino", "Latinoamérica"]], en: [["us", "EE. UU."], ["uk", "Reino Unido"]] };
+const EJEMPLO = {
+  es: "Hola. Esta es mi voz. Puedo contarte por qué un autobús de dieciocho metros aguanta tanto peso, y cómo gira en una rotonda sin tocar el bordillo. ¿Sorprendente, verdad? Pues espera a ver lo que viene ahora.",
+  en: "Hi there. This is my voice. I can tell you why an eighteen-meter bus carries so much weight, and how it turns around a roundabout without touching the curb. Surprising, right? Just wait until you see what comes next.",
+};
+
+const vIdioma = seg("segVIdioma", () => updateVoces(true));
+const vModo = seg("segVModo", () => updateVoces(false));
+let vAcento = null;
+function vMotor() { return vIdioma.get() === "en" && vModo.get() === "lista" ? "kokoro" : "qwen"; }
+
+function renderKokoro() {
+  $("kokoroList").innerHTML = KOKORO.map(([id, n, d]) => `
+    <div class="voice ${id === state.kokoro ? "sel" : ""}" data-k="${id}">
+      <span class="radio"></span>
+      <div class="info"><div class="name">${n}</div><div class="meta">${d}</div></div>
+    </div>`).join("");
+}
+$("kokoroList").addEventListener("click", (e) => {
+  const c = e.target.closest("[data-k]");
+  if (!c) return;
+  state.kokoro = c.dataset.k; store.set("kokoro-voz", state.kokoro); renderKokoro();
+});
+
+$("plantillas").innerHTML = PLANTILLAS.map(([n], i) => `<button class="chip" data-p="${i}" type="button">${n}</button>`).join("");
+$("plantillas").addEventListener("click", (e) => {
+  const c = e.target.closest("[data-p]");
+  if (!c) return;
+  $("vDesc").value = PLANTILLAS[c.dataset.p][1];
+  $("plantillas").querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
+  saveVForm(); updateVButton();
+});
+$("vDesc").addEventListener("input", () => { $("plantillas").querySelectorAll(".chip").forEach((x) => x.classList.remove("on")); saveVForm(); updateVButton(); });
+$("vSeedBtn").onclick = () => { $("vSeed").value = Math.floor(Math.random() * 100000); toast("Otra semilla: misma descripción, otra voz"); };
+
+function saveVForm() {
+  store.set("voces-form", { idioma: vIdioma.get(), modo: vModo.get(), desc: $("vDesc").value, acento: vAcento?.get(), texto: { ...(store.get("voces-form", {}).texto || {}), [vIdioma.get()]: $("vTexto").value } });
+}
+function updateVoces(cambioIdioma) {
+  const lang = vIdioma.get();
+  $("modoBox").classList.toggle("hidden", lang !== "en");
+  const motor = vMotor();
+  $("vLista").classList.toggle("hidden", motor !== "kokoro");
+  $("vDisenar").classList.toggle("hidden", motor !== "qwen");
+  if (cambioIdioma || !vAcento) {
+    $("segAcento").innerHTML = ACENTOS[lang].map(([v, n], i) => `<button data-v="${v}" class="${i ? "" : "on"}">${n}</button>`).join("");
+    const nuevo = seg("segAcento", saveVForm);
+    if (!vAcento) { const f = store.get("voces-form", {}); if (f.acento) nuevo.set(f.acento); }
+    vAcento = nuevo;
+    const textos = store.get("voces-form", {}).texto || {};
+    $("vTexto").value = textos[lang] || EJEMPLO[lang];
+  }
+  $("engineInfo").innerHTML = motor === "kokoro"
+    ? "<b>Kokoro-82M</b> · hecho para inglés, suena muy natural y es rapidísimo (va bien incluso sin gráfica). Licencia Apache 2.0: puedes usarlo en anuncios."
+    : `<b>Qwen3-TTS VoiceDesign</b> · inventa una voz a partir de tu descripción; es el modelo abierto que mejor habla ${lang === "es" ? "español" : "inglés con voces a medida"}. Licencia Apache 2.0.
+       <br>Las descripciones en español se traducen solas al inglés, que es como mejor las entiende. Necesita ≈ 5 GB de gráfica; si no los hay, usa la CPU (unos minutos por prueba).`;
+  $("vTexto").dispatchEvent(new Event("input"));
+  saveVForm(); updateVButton(); renderVocesBanner();
+}
+$("vTexto").addEventListener("input", () => {
+  const n = $("vTexto").value.length;
+  $("vCounter").textContent = `${n} / 700 · ≈ ${Math.max(1, Math.round(n / 15))} s`;
+  saveVForm(); updateVButton();
+});
+$("vTextoReset").onclick = () => { $("vTexto").value = EJEMPLO[vIdioma.get()]; $("vTexto").dispatchEvent(new Event("input")); };
+
+function renderVocesBanner() {
+  const m = state.motores[vMotor()];
+  const falta = m && !m.instalado;
+  $("vocesMissing").classList.toggle("hidden", !falta);
+  if (falta) $("vocesMissing").innerHTML = `${vMotor() === "kokoro" ? "Kokoro" : "Qwen3-TTS"} aún no está instalado. Cierra el servidor y haz doble clic en <code>instalar-voces.bat</code>. Después vuelve a abrir <code>iniciar.bat</code>.`;
+}
+function updateVButton() {
+  const b = $("btnDisenar");
+  const m = state.motores[vMotor()];
+  const ok = m && m.instalado;
+  const motor = vMotor();
+  const listo = $("vTexto").value.trim() && (motor === "kokoro" ? state.kokoro : $("vDesc").value.trim().length >= 3);
+  const gpuBusy = motor === "qwen" && (state.generating || state.transcribing);
+  b.disabled = !(ok && listo && !state.designing && !gpuBusy);
+  b.textContent = state.designing ? "Generando prueba…" : !ok ? "Motor no instalado" : gpuBusy ? "Esperando a la otra tarea…" : motor === "qwen" && !$("vDesc").value.trim() ? "Primero describe la voz" : "Generar prueba";
+}
+$("btnDisenar").onclick = async () => {
+  const motor = vMotor();
+  const body = { motor, idioma: vIdioma.get(), texto: $("vTexto").value };
+  if (motor === "kokoro") { body.voz = state.kokoro; const k = KOKORO.find((x) => x[0] === state.kokoro); body.etiqueta = k ? `${k[1]} · ${k[2]}` : state.kokoro; }
+  else { body.instruccion = $("vDesc").value; body.acento = vAcento.get(); body.semilla = Number($("vSeed").value) || 0; }
+  state.designing = true; updateVButton(); updateGenButton(); updateTrButton();
+  $("vProgress").classList.add("show"); $("vProgText").textContent = "Preparando el motor…"; $("vAviso").classList.add("hidden");
+  try {
+    const r = await api("/api/disenar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    state.newPrueba = r.id;
+    await loadPruebas();
+    toast(`Prueba lista en ${fmtS(r.segundos || 0)}`);
+    document.querySelector("#view-voces .history").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { toast(e.message, true); }
+  state.designing = false;
+  $("vProgress").classList.remove("show");
+  updateVButton(); updateGenButton(); updateTrButton();
+};
+
+async function loadPruebas() {
+  const list = await api("/api/pruebas");
+  loadPruebas.cache = list;
+  const box = $("pruebas");
+  if (!list.length) { box.innerHTML = `<div class="empty">Aquí aparecerán las voces que pruebes. Guarda las que te gusten.</div>`; return; }
+  box.innerHTML = list.map((t) => {
+    const src = `/api/pruebas/${encodeURIComponent(t.id)}.wav`;
+    const titulo = t.motor === "kokoro" ? t.descripcion : (PLANTILLAS.find((x) => x[1] === t.descripcion)?.[0] || t.descripcion);
+    const sugerido = t.motor === "kokoro" ? (t.descripcion || "").split(" · ")[0] : (PLANTILLAS.find((x) => x[1] === t.descripcion)?.[0] || "Mi voz");
+    return `<div class="job ${t.id === state.newPrueba ? "new" : ""}" data-prueba="${esc(t.id)}">
+      <div class="job-head">
+        <div class="job-title"><span class="pill ${esc(t.idioma)}">${esc(t.idioma.toUpperCase())}</span> <b>${esc(titulo || "")}</b>
+          <span>· ${t.motor === "kokoro" ? "Kokoro" : `Qwen3-TTS · semilla ${t.semilla}`} · ${fecha(t.creado)} · ${fmtS(t.segundos || 0)} en ${esc(t.dispositivo || "")}</span></div>
+        <div class="job-actions">
+          ${t.motor === "qwen" ? `<button class="btn ghost" data-reusep="${esc(t.id)}" title="Volver a cargar la descripción">↺ Reutilizar</button>` : ""}
+          <button class="btn ghost" data-delp="${esc(t.id)}" title="Borrar">✕</button>
+        </div>
+      </div>
+      <div class="clip">
+        <div><div class="t" title="Clic para ver todo">${esc(t.texto)}</div>${t.aviso ? `<div class="o warn">${esc(t.aviso)}</div>` : ""}</div>
+        <audio controls preload="none" src="${src}"></audio>
+        <div class="row"><span class="d">${fmtS(t.duracion || 0)}</span><a class="btn sm" href="${src}?descargar=1">⬇ WAV</a></div>
+      </div>
+      <div class="save">${t.guardada
+        ? `<span class="saved">✓ Guardada como «${esc(t.guardada.nombre)}»</span> <a class="btn sm" href="#clonar" data-goto="clonar">Usar en Clonar voz →</a>`
+        : `<input type="text" maxlength="60" value="${esc(sugerido)}" aria-label="Nombre de la voz" /><button class="btn sm primary" data-savep="${esc(t.id)}">Guardar como voz</button>`}
+      </div></div>`;
+  }).join("");
+}
+$("pruebas").addEventListener("click", async (e) => {
+  const tx = e.target.closest(".clip .t");
+  if (tx) { tx.classList.toggle("open"); return; }
+  const card = e.target.closest("[data-prueba]");
+  const del = e.target.closest("[data-delp]"), save = e.target.closest("[data-savep]"), reuse = e.target.closest("[data-reusep]");
+  if (del) {
+    try { await api(`/api/pruebas/${encodeURIComponent(del.dataset.delp)}`, { method: "DELETE" }); await loadPruebas(); }
+    catch (err) { toast(err.message, true); }
+  }
+  if (save && card) {
+    const nombre = card.querySelector(".save input").value.trim();
+    if (!nombre) { toast("Ponle un nombre a la voz", true); return; }
+    save.disabled = true;
+    try {
+      const v = await api(`/api/pruebas/${encodeURIComponent(save.dataset.savep)}/guardar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) });
+      state.selected = v.id;
+      await loadVoices(); await loadPruebas();
+      const p = (loadPruebas.cache || []).find((x) => x.id === save.dataset.savep);
+      if (p) langAudio.set(p.idioma);
+      toast(`Voz «${v.nombre}» guardada: ya está seleccionada en «Clonar voz»`);
+    } catch (err) { toast(err.message, true); save.disabled = false; }
+  }
+  if (reuse) {
+    const t = (loadPruebas.cache || []).find((x) => x.id === reuse.dataset.reusep);
+    if (!t) return;
+    vIdioma.set(t.idioma); if (t.idioma === "en") vModo.set("disenar");
+    $("vDesc").value = t.descripcion; $("vSeed").value = t.semilla; if (t.acento) vAcento.set(t.acento);
+    $("vTexto").value = t.texto; $("vTexto").dispatchEvent(new Event("input"));
+    $("vDesc").dispatchEvent(new Event("input"));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+});
+$("pruebas").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches(".save input")) e.target.closest(".save").querySelector("[data-savep]")?.click();
+});
+
+renderKokoro();
+{
+  const f = store.get("voces-form", {});
+  if (f.idioma) vIdioma.set(f.idioma);
+  if (f.modo) vModo.set(f.modo);
+  if (f.desc) $("vDesc").value = f.desc;
+  updateVoces(true);
+  if (f.acento) vAcento.set(f.acento);
+}
+
+pollStatus();
+loadPruebas().catch((e) => toast(e.message, true));
+loadVoices().catch((e) => toast(e.message, true));
+loadJobs().catch((e) => toast(e.message, true));
+loadTr().catch((e) => toast(e.message, true));
+</script>
+</body>
+</html>

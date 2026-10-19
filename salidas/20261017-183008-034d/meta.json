@@ -1,0 +1,24 @@
+{
+  "id": "20261017-183008-034d",
+  "creado": "2026-10-17T18:30:09",
+  "voz": {
+    "id": "mi-voz-prueba",
+    "nombre": "Mi voz (prueba)"
+  },
+  "idioma": "es",
+  "ajustes": {
+    "expresividad": 0.5,
+    "cfg": 0.5,
+    "temperatura": 0.8,
+    "semilla": 42
+  },
+  "segundos_generando": 0.5,
+  "archivos": [
+    {
+      "archivo": "hola-esto-es-una-prueba.wav",
+      "nombre": "hola-esto-es-una-prueba",
+      "texto": "Hola, esto es una prueba.",
+      "duracion": 1.667
+    }
+  ]
+}
